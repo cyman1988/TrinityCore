@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       CMAKE_BUILD_TYPE: RelWithDebInfo
       MYSQL_ROOT_DIR: C:/Program Files/MySQL/MySQL Server 8.0
@@ -114,3 +116,15 @@ jobs:
         name: TrinityCoreMasterWin64VS2022
         # Set a custom retention for artifacts
         #retention-days: 7
+
+    - name: Publish server zip as a release (plain download link for the repack)
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/classic-mechanics'
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $bin = "${{ steps.strings.outputs.build-output-dir }}/bin/${{ env.CMAKE_BUILD_TYPE }}"
+        Compress-Archive -Path "$bin/*.exe", "$bin/*.dll" -DestinationPath ForeverServer-win64.zip
+        $tag = "classic-mechanics-latest"
+        gh release delete $tag --yes --cleanup-tag 2>$null
+        gh release create $tag ForeverServer-win64.zip --target ${{ github.sha }} --title "classic-mechanics ${{ github.sha }}" --notes "Windows server build of ${{ github.sha }}"
