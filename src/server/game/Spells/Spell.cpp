@@ -7910,16 +7910,8 @@ SpellCastResult Spell::CheckItems(int32* param1 /*= nullptr*/, int32* param2 /*=
                         return SPELL_FAILED_NOT_TRADEABLE;
                 }
 
-                // Apply item level restriction
-                if (!m_spellInfo->HasAttribute(SPELL_ATTR2_ALLOW_LOW_LEVEL_BUFF))
-                {
-                    uint32 requiredLevel = item->GetRequiredLevel();
-                    if (!requiredLevel)
-                        requiredLevel = item->GetItemLevel(item->GetOwner());
-
-                    if (requiredLevel < m_spellInfo->BaseLevel)
-                        return SPELL_FAILED_LOWLEVEL;
-                }
+                // Classic 1.60: no item level restriction on temporary enchants (imbues, poisons, sharpening stones), as in vanilla
+                // (VMaNGOS Spell::CheckItems); most 1.60 weapons require level 1 and were refused every imbue above rank 1
                 if (m_CastItem && m_spellInfo->MaxLevel > 0 && item->GetItemLevel(item->GetOwner()) > m_spellInfo->MaxLevel)
                     return SPELL_FAILED_HIGHLEVEL;
                 break;

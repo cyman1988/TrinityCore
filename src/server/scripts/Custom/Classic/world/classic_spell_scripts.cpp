@@ -1011,6 +1011,62 @@ public:
     }
 };
 
+// 439431 - Windfury Weapon (1.60 imbue aura). Every Windfury enchant (283, 284, 525, 1669, 7569) equips this dummy aura on the
+// imbued weapon: "Each hit has a 20% chance of granting you 2 extra attacks with X extra melee attack power." The client tooltip
+// takes X from the rank's proc spell (8233, 8236, 10484, 16361: extra attacks + attack power with 3 charges), so the rank comes
+// from the enchant on the weapon that hit. Proc chance and cooldown are in spell_proc.
+class classic_spell_sha_windfury_weapon : public AuraScript
+{
+    static uint32 GetProcSpell(uint32 enchantId)
+    {
+        switch (enchantId)
+        {
+            case 283:  return 8233;  // Rank 1
+            case 284:  return 8236;  // Rank 2
+            case 525:  return 10484; // Rank 3
+            case 1669:
+            case 7569: return 16361; // Rank 4
+            default:   return 0;
+        }
+    }
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ 8233, 8236, 10484, 16361 });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        _procSpellId = 0;
+        Player* player = GetTarget()->ToPlayer();
+        DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+        if (!player || !damageInfo || damageInfo->GetAttackType() == RANGED_ATTACK)
+            return false;
+
+        // only hits made with the imbued weapon
+        Item* weapon = player->GetWeaponForAttack(damageInfo->GetAttackType(), true);
+        if (!weapon || weapon->GetGUID() != GetAura()->GetCastItemGUID())
+            return false;
+
+        _procSpellId = GetProcSpell(weapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT));
+        return _procSpellId != 0;
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    {
+        PreventDefaultAction();
+        GetTarget()->CastSpell(GetTarget(), _procSpellId, CastSpellExtraArgs(aurEff));
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(classic_spell_sha_windfury_weapon::CheckProc);
+        OnEffectProc += AuraEffectProcFn(classic_spell_sha_windfury_weapon::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+
+    uint32 _procSpellId = 0;
+};
+
 void AddSC_classic_spell_scripts()
 {
     new classic_unit_tigers_fury();
@@ -1039,4 +1095,5 @@ void AddSC_classic_spell_scripts()
     RegisterSpellScript(classic_spell_profession_book);
     RegisterSpellScript(classic_spell_ground_area_damage);
     RegisterSpellScript(classic_spell_heal_injured_druid);
+    RegisterSpellScript(classic_spell_sha_windfury_weapon);
 }
