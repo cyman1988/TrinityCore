@@ -626,6 +626,7 @@ enum ReactiveType
 {
     REACTIVE_DEFENSE      = 0,
     REACTIVE_DEFENSE_2    = 1,
+    REACTIVE_OVERPOWER    = 2,  // Classic 1.60: warrior attacker side, the target dodged (combo point on ClassicComboTarget, like vanilla)
     MAX_REACTIVE
 };
 
@@ -1780,6 +1781,9 @@ class TC_GAME_API Unit : public WorldObject
         // reactive attacks
         void ClearAllReactives();
         void StartReactiveTimer(ReactiveType reactive) { m_reactiveTimer[reactive] = REACTIVE_TIMER_START;}
+        // Classic 1.60: reactive abilities (Overpower) check and end the reactive window from scripts
+        bool HasReactiveTimer(ReactiveType reactive) const { return m_reactiveTimer[reactive] != 0; }
+        void ClearReactiveTimer(ReactiveType reactive) { m_reactiveTimer[reactive] = 0; }
         void UpdateReactives(uint32 p_time);
 
         // group updates
