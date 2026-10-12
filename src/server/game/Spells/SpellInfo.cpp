@@ -665,10 +665,20 @@ SpellEffectValue SpellEffectInfo::CalcValue(WorldObject const* caster /*= nullpt
     return std::clamp(value, MinValue, MaxValue);
 }
 
-// Classic 1.60: spells of players and of what they control (pets, totems, traps) use their base points as flat values
-bool SpellEffectInfo::UsesClassicFlatBasePoints(WorldObject const* caster)
+// Classic 1.60: spells of players and of what they control (pets, totems, traps) use their base points as flat values.
+// So do vanilla spells cast by creatures (VMaNGOS spell lists: Elder Cloud Serpent's Chain Lightning 421 / Lightning Bolt 8246
+// hit for ~1000 at level 34-36 when bp 88/161 were read as a percentage of the expected creature spell damage). Vanilla
+// spells have a per-level gain or whole base points under the 1.12 spell id range; new 1.60 creature spells (Living Storm
+// Shock 1259652, bp 10) and retail ones with fractional base points (Shock 12553, bp 660.708) keep the expected stat scaling.
+bool SpellEffectInfo::UsesClassicFlatBasePoints(WorldObject const* caster) const
 {
-    return caster && caster->GetAffectingPlayer();
+    if (caster && caster->GetAffectingPlayer())
+        return true;
+
+    if (RealPointsPerLevel != 0.0f)
+        return true;
+
+    return _spellInfo->Id < 31000 && BasePoints == std::floor(BasePoints);
 }
 
 SpellEffectValue SpellEffectInfo::CalcBaseValue(WorldObject const* caster, Unit const* target, uint32 itemId, int32 itemLevel) const
