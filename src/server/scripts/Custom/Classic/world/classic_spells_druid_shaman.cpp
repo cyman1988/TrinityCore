@@ -445,6 +445,42 @@ class classic_spell_sha_lightning_shield : public AuraScript
     }
 };
 
+// 8253, 8248, 10523, 16389 - Flametongue Totem Proc (cast on the enemy by the totem passive through classic_spell_proc_trigger_bp):
+// "Main hand attacks deal an additional ${$8253m1/77} to ${$8253M1/25} Fire damage." Same formula as the weapon imbue: the dummy
+// points are the damage per 100 sec of main hand speed, dealt by 10444.
+class classic_spell_sha_flametongue_totem_proc : public SpellScript
+{
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_CDS_FLAMETONGUE_ATTACK });
+    }
+
+    void HandleDummy(SpellEffIndex /*effIndex*/)
+    {
+        Player* player = GetCaster()->ToPlayer();
+        Unit* target = GetHitUnit();
+        if (!player || !target)
+            return;
+
+        Item* weapon = GetCastItem();
+        if (!weapon)
+            weapon = player->GetWeaponForAttack(BASE_ATTACK, true);
+        if (!weapon)
+            return;
+
+        double damage = GetEffectValue() * 0.01 * (weapon->GetTemplate()->GetDelay() / 1000.0);
+        if (damage < 1.0)
+            return;
+
+        player->CastSpell(target, SPELL_CDS_FLAMETONGUE_ATTACK, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(std::round(damage)));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(classic_spell_sha_flametongue_totem_proc::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
 void AddSC_classic_spells_druid_shaman()
 {
     RegisterSpellScript(classic_spell_dru_ferocious_bite);
@@ -455,5 +491,6 @@ void AddSC_classic_spells_druid_shaman()
     RegisterSpellScript(classic_spell_dru_predatory_strikes);
     RegisterSpellScript(classic_spell_dru_enrage);
     RegisterSpellScript(classic_spell_sha_flametongue_weapon);
+    RegisterSpellScript(classic_spell_sha_flametongue_totem_proc);
     RegisterSpellScript(classic_spell_sha_lightning_shield);
 }

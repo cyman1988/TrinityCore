@@ -50,3 +50,11 @@ INSERT INTO `spell_proc` (`SpellId`,`SchoolMask`,`SpellFamilyName`,`SpellFamilyM
 (8134,0,0,0,0,0,0,0x222A8,0,1,2,0,0,0,0,100,3500,3),
 (10431,0,0,0,0,0,0,0x222A8,0,1,2,0,0,0,0,100,3500,3),
 (10432,0,0,0,0,0,0,0x222A8,0,1,2,0,0,0,0,100,3500,3);
+
+-- Flametongue Totem proc dummies (cast by the totem passive's classic_spell_proc_trigger_bp): Fire damage by main hand speed via 10444.
+DELETE FROM `spell_script_names` WHERE `ScriptName` = 'classic_spell_sha_flametongue_totem_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(8253, 'classic_spell_sha_flametongue_totem_proc'),
+(8248, 'classic_spell_sha_flametongue_totem_proc'),
+(10523, 'classic_spell_sha_flametongue_totem_proc'),
+(16389, 'classic_spell_sha_flametongue_totem_proc');
