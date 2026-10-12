@@ -451,6 +451,19 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
                     val2 = strength * 2.0f - 20.0f;
                     if (GetShapeshiftForm() == FORM_CAT_FORM)
                         val2 += agility;
+                    // Classic 1.60: Predatory Strikes (16972, effect 0 dummy): "Increases your melee Attack Power in Cat Form, Bear Form,
+                    // and Dire Bear Form by $s1% of your level" (VMaNGOS StatSystem.cpp)
+                    switch (GetShapeshiftForm())
+                    {
+                        case FORM_CAT_FORM:
+                        case FORM_BEAR_FORM:
+                        case FORM_DIRE_BEAR_FORM:
+                            if (AuraEffect const* predatoryStrikes = GetAuraEffect(16972, EFFECT_0))
+                                val2 += level * predatoryStrikes->GetAmount() / 100.0f;
+                            break;
+                        default:
+                            break;
+                    }
                     break;
                 default:    // mage, priest, warlock
                     val2 = strength - 10.0f;
