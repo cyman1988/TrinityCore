@@ -9228,8 +9228,10 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemT
             if (FindCurrentSpellBySpellId(5938) && e_slot == TEMP_ENCHANTMENT_SLOT)
                 chance = 100.0f;
 
+            bool consumedCharge = false;
             CombatEnchantProc::Dispatch(chance, [](float procChance) { return roll_chance(procChance); }, [&]
             {
+                consumedCharge = true;
                 Unit* target = spellInfo->IsPositive() ? this : damageInfo.GetVictim();
 
                 CastSpellExtraArgs args(item);
@@ -9247,6 +9249,29 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemT
                 }
                 CastSpell(target, spellInfo->Id, args);
             });
+
+            // Classic 1.60: temporary enchants with charges (poisons) use one charge per proc, like vanilla.
+            // Improved Poisons 14113 effect 1: "gives Poison applications a $m2% chance to not consume a charge".
+            if (consumedCharge && e_slot == TEMP_ENCHANTMENT_SLOT)
+            {
+                uint32 charges = item->GetEnchantmentCharges(TEMP_ENCHANTMENT_SLOT);
+                if (charges)
+                {
+                    constexpr uint32 SPELL_ROGUE_IMPROVED_POISONS = 14113;
+                    AuraEffect const* improvedPoisons = GetAuraEffect(SPELL_ROGUE_IMPROVED_POISONS, EFFECT_1);
+                    if (!improvedPoisons || !roll_chance(improvedPoisons->GetAmount()))
+                    {
+                        if (charges > 1)
+                            item->SetEnchantmentCharges(TEMP_ENCHANTMENT_SLOT, charges - 1);
+                        else
+                        {
+                            ApplyEnchantment(item, TEMP_ENCHANTMENT_SLOT, false);
+                            item->ClearEnchantment(TEMP_ENCHANTMENT_SLOT);
+                            break; // pEnchant no longer applies to this item
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -26988,9 +27013,24 @@ void Player::InitializeSelfResurrectionSpells()
     AuraEffectList const& dummyAuras = GetAuraEffectsByType(SPELL_AURA_DUMMY);
     for (AuraEffectList::const_iterator itr = dummyAuras.begin(); itr != dummyAuras.end(); ++itr)
     {
+        // Classic 1.60: Soulstone Resurrection ranks 20707, 20762-20765 offer their own Use Soulstone rank
+        // ("resurrect with $3026s1 health and $3026q1 mana", ... $20761s1/$20761q1), like vanilla (VMaNGOS SelectResurrectionSpellId)
+        uint32 soulstoneSpell = 0;
+        switch ((*itr)->GetId())
+        {
+            case 20707: soulstoneSpell = 3026;  break;  // rank 1: 400 health, 700 mana
+            case 20762: soulstoneSpell = 20758; break;  // rank 2: 750 health, 1200 mana
+            case 20763: soulstoneSpell = 20759; break;  // rank 3: 1100 health, 1700 mana
+            case 20764: soulstoneSpell = 20760; break;  // rank 4: 1600 health, 2200 mana
+            case 20765: soulstoneSpell = 20761; break;  // rank 5: 2200 health, 2800 mana
+            default: break;
+        }
+
         // Soulstone Resurrection                           // prio: 3 (max, non death persistent)
-        if ((*itr)->GetSpellInfo()->SpellFamilyName == SPELLFAMILY_WARLOCK && (*itr)->GetSpellInfo()->SpellFamilyFlags[1] & 0x1000000)
-            spells[0] = 3026;
+        if (soulstoneSpell)
+            spells[0] = std::max(spells[0], soulstoneSpell);
+        else if ((*itr)->GetSpellInfo()->SpellFamilyName == SPELLFAMILY_WARLOCK && (*itr)->GetSpellInfo()->SpellFamilyFlags[1] & 0x1000000)
+            spells[0] = std::max(spells[0], 3026u);
         // Twisting Nether                                  // prio: 2 (max)
         else if ((*itr)->GetId() == 23701 && roll_chance(10))
             spells[1] = 23700;

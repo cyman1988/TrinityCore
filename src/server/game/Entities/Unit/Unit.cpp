@@ -10729,6 +10729,13 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* procTarget, ProcFlagsInit
                 {
                     ModifyAuraState(AURA_STATE_DEFENSIVE, true);
                     StartReactiveTimer(REACTIVE_DEFENSE);
+
+                    // Classic 1.60: Counterattack (19306, 20909, 20910) needs the vanilla hunter parry state (7, AURA_STATE_HUNTER_PARRY)
+                    if (GetClass() == CLASS_HUNTER)
+                    {
+                        ModifyAuraState(AURA_STATE_DEFENSIVE_2, true);
+                        StartReactiveTimer(REACTIVE_DEFENSE_2);
+                    }
                 }
                 // if and victim block attack
                 if (hitMask & PROC_HIT_BLOCK)
@@ -10736,6 +10743,18 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* procTarget, ProcFlagsInit
                     ModifyAuraState(AURA_STATE_DEFENSIVE, true);
                     StartReactiveTimer(REACTIVE_DEFENSE);
                 }
+            }
+            // Classic 1.60: for the attacker. Overpower (7384, 7887, 11584, 11585) "Only useable after the target dodges": like vanilla
+            // the warrior gets a combo point on the dodging target for the reactive window (classic_spell_warr_overpower checks it)
+            else if (hitMask & PROC_HIT_DODGE && GetClass() == CLASS_WARRIOR && IsPlayer())
+            {
+                if (GetClassicComboTarget() != procTarget->GetGUID())
+                {
+                    SetPower(POWER_COMBO_POINTS, 0);
+                    SetClassicComboTarget(procTarget->GetGUID());
+                }
+                ModifyPower(POWER_COMBO_POINTS, 1);
+                StartReactiveTimer(REACTIVE_OVERPOWER);
             }
         }
     }
@@ -11114,6 +11133,13 @@ void Unit::UpdateReactives(uint32 p_time)
                 case REACTIVE_DEFENSE_2:
                     if (HasAuraState(AURA_STATE_DEFENSIVE_2))
                         ModifyAuraState(AURA_STATE_DEFENSIVE_2, false);
+                    break;
+                case REACTIVE_OVERPOWER:                    // Classic 1.60: the dodge window ended, drop the warrior's combo point
+                    if (GetClass() == CLASS_WARRIOR && IsPlayer())
+                    {
+                        SetPower(POWER_COMBO_POINTS, 0);
+                        SetClassicComboTarget(ObjectGuid::Empty);
+                    }
                     break;
                 default:
                     break;
